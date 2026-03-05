@@ -36,16 +36,16 @@ https://mandirmap.netlify.app/
 ## Screenshots
 
 ### Home Page
-![Home Page](images/home-page.png)
+![Home Page](home-page.png)
 
 ### Temple Search
-![Temple Search](images/temple-search.png)
-
+![Temple Search](temple-search.png)
+and i saved as
 ### Local Itinerary
-![Local Itinerary](images/local-itinerary.png)
+![Local Itinerary](local-itinerary.png)
 
 ### Custom Start Itinerary
-![Custom Start Itinerary](images/custom-start-itinerary.png)
+![Custom Start Itinerary](custom-start-itinerary.png)
 
 ## How to Run the Project
 1. Download or clone the repository
