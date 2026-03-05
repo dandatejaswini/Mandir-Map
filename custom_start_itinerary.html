@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Temple Itinerary — Select Temples</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: #FFF7EA;
+      color: #2b2b2b;
+      min-height: 100vh;
+      padding: 32px;
+    }
+    .container {
+      max-width: 740px;
+      background: #fffbf2;
+      margin: auto;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      padding: 36px 24px;
+    }
+    .search-bar {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .search-bar select, .search-bar input {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #8b0000;
+      font-size: 16px;
+      background: #FFF5E1;
+      outline: none;
+      flex: 1;
+    }
+    .temple-list {
+      margin-top: 20px;
+    }
+    .temple-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      background: #fffaf0;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      padding: 14px 16px;
+    }
+    .temple-info h4 {
+      margin: 0;
+      font-size: 16px;
+      color: #8B0000;
+    }
+    button {
+      background: #EBA834;
+      color: #fff;
+      font-weight: 600;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #d9952b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Temple Itinerary — Select Temples</h2>
+
+    <!-- Search Controls -->
+    <div class="search-bar">
+      <select id="filter-type">
+        <option value="district">District</option>
+        <option value="mandal">Mandal</option>
+      </select>
+      <input type="text" id="place-search" placeholder="Type place (eg: Vizianagaram)" />
+      <button onclick="fetchTemples()">Search</button>
+    </div>
+
+    <!-- Temple List -->
+    <div class="temple-list" id="temple-list"></div>
+
+    <button id="next-button" style="margin-top:30px;display:none;" onclick="submitSelection()">Continue</button>
+  </div>
+
+  <!-- Firebase App (add your credentials) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCcuqc-AJuktUrlaNv2Qyo6HZ_a_yJFpgU",
+      authDomain: "mandir-3299f.firebaseapp.com",
+      projectId: "mandir-3299f",
+      storageBucket: "mandir-3299f.firebasestorage.app",
+      messagingSenderId: "521487727855",
+      appId: "1:521487727855:web:43ec7405af01b3cfbaaf1a"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function fetchTemples() {
+      const type = document.getElementById('filter-type').value;
+      const place = document.getElementById('place-search').value.trim().toLowerCase();
+      if (!place) return; // no alert, just do nothing
+
+      let query;
+      if (type === "district") {
+        query = db.collection("temples").where("district", "==", place);
+      } else {
+        query = db.collection("temples").where("mandal", "==", place);
+      }
+
+      const snapshot = await query.get();
+      const temples = [];
+      snapshot.forEach(doc => temples.push(doc.data()));
+
+      renderTempleList(temples);
+    }
+
+    function renderTempleList(temples) {
+      const list = document.getElementById("temple-list");
+      if (temples.length === 0) {
+        list.innerHTML = `<p>No temples found for this location.</p>`;
+        document.getElementById('next-button').style.display = 'none';
+        return;
+      }
+
+      list.innerHTML = temples.map((temple, i) => `
+        <div class="temple-item">
+          <input type="checkbox" id="temple_${i}" value="${temple.name}" />
+          <div class="temple-info">
+            <h4>${temple.name}</h4>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('next-button').style.display = '';
+    }
+
+    function submitSelection() {
+      const templeChecks = document.querySelectorAll('.temple-item input[type="checkbox"]:checked');
+      const selected = Array.from(templeChecks).map(input => input.value);
+
+      // Store selection (even if empty)
+      localStorage.setItem("selectedTemples", JSON.stringify(selected));
+
+      // Redirect to next page
+      window.location.href = "custom_start_itinerary_planner.html";
+    }
+  </script>
+</body>
+</html>

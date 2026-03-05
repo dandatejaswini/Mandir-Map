@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mandir Map — Home</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --saffron: #EBA834;
+      --maroon: #8B0000;
+      --cream: #FFF5E1;
+      --bg: #FFF7EA;
+      --card-bg: #fffaf0;
+      --radius: 14px;
+      --shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,var(--cream), #fffefc);
+      color:#2b2b2b;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:32px;
+    }
+
+    .wrap{
+      width:100%;
+      max-width:980px;
+      background:var(--card-bg);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      padding:28px;
+      border:1px solid rgba(139,0,0,0.03);
+    }
+
+    .top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:24px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .brand img{
+      width:64px;
+      height:64px;
+      border-radius:12px;
+    }
+    .brand h1{
+      margin:0;
+      font-size:22px;
+      letter-spacing:0.6px;
+      color:var(--maroon);
+    }
+    .brand p{ margin:0; font-size:12px; color:#6b4b3a; }
+
+    .main{
+      display:flex;
+      gap:26px;
+      align-items:center;
+      justify-content:center;
+      padding:28px 8px;
+      flex-wrap:wrap;
+    }
+
+    .card{
+      width:260px;
+      background:#fff;
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:20px;
+      text-align:center;
+      transition:transform .18s ease, box-shadow .18s ease;
+    }
+    .card:hover{ transform:translateY(-6px); box-shadow:0 18px 40px rgba(0,0,0,0.12); cursor:pointer; }
+
+    .icon-wrap img{
+      width:100px;
+      height:100px;
+      border-radius:12px;
+      object-fit:contain;
+      margin-bottom:12px;
+      padding:12px;
+    }
+
+    .title{
+      margin:0 0 8px 0;
+      font-weight:600;
+      font-size:18px;
+      color:var(--maroon);
+    }
+    .desc{
+      margin:0;
+      font-size:13px;
+      color:#6b4b3a;
+    }
+    .card a{
+      display:inline-block;
+      margin-top:14px;
+      padding:10px 16px;
+      border-radius:10px;
+      text-decoration:none;
+      font-weight:600;
+      font-size:13px;
+      color:white;
+      background:var(--saffron);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Header -->
+    <div class="top">
+      <div class="brand">
+        <img src="mandir-map.png" alt="Mandir Map Logo">
+        <div>
+          <h1>MANDIR MAP</h1>
+          <p>Discover temples • Plan your journey</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main actions -->
+    <section class="main">
+      <!-- Temple Search -->
+      <div class="card">
+        <div class="icon-wrap">
+          <img src="temple-search.png" alt="Temple Search Icon">
+        </div>
+        <h3 class="title">Temple Search</h3>
+        <p class="desc">Find temples and explore their details easily.</p>
+        <a href="temple-search.html">Search</a>
+      </div>
+
+      <!-- Itinerary Generator -->
+      <div class="card">
+        <div class="icon-wrap">
+          <img src="local-itinerary.png" height="20px" alt="Itinerary Generator Icon">
+        </div>
+        <h3 class="title">Local Itinerary</h3>
+        <p class="desc">Create optimized temple routes for your journey.</p>
+        <a href="local_itinerary.html">Generate</a>
+      </div>
+
+      <!-- Itinerary Generator Without Current Location (Firebase) -->
+      <div class="card">
+        <div class="icon-wrap">
+          <img src="custom-start-itinerary.png" height="20px" alt="Itinerary No Location Icon">
+        </div>
+        <h3 class="title">Custom Start Itinerary</h3>
+        <p class="desc">Plan your temple route without using your current location.</p>
+        <a href="custom_start_itinerary.html">Generate</a>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

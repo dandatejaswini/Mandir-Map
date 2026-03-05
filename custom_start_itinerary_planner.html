@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Temple Visit Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: #FFF7EA;
+    color: #2b2b2b;
+    padding: 20px;
+    max-width: 900px;
+    margin: auto;
+  }
+  h1, h3 {
+    color: #8B0000;
+    text-align: center;
+  }
+  label {
+    font-weight: 600;
+    display: block;
+    margin-top: 15px;
+  }
+  input, select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-top: 6px;
+    box-sizing: border-box;
+  }
+  button {
+    display: block;
+    margin: 25px auto;
+    padding: 12px 25px;
+    background: #EBA834;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #fff;
+    font-size: 16px;
+  }
+  button:hover { background: #d9952b; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+  }
+  th {
+    background-color: #007BFF;
+    color: white;
+  }
+  tr:nth-child(even) { background-color: #f2f2f2; }
+  td:first-child { text-align: left; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Temple Visit Planner</h1>
+
+<label for="startTime">Starting Time:</label>
+<input type="time" id="startTime" value="06:00">
+
+<label for="endTime">Ending Time:</label>
+<input type="time" id="endTime" value="21:00">
+
+<label for="transportMode">Transport Mode:</label>
+<select id="transportMode">
+  <option value="">-- Select Transport --</option>
+  <option value="Bus">Bus (40 km/h)</option>
+  <option value="Bike">Bike (40 km/h)</option>
+  <option value="Auto">Auto (30 km/h)</option>
+  <option value="Car">Car (60 km/h)</option>
+</select>
+
+<button onclick="generatePlan()">Generate Optimized Plan</button>
+
+<div id="planResult"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyCcuqc-AJuktUrlaNv2Qyo6HZ_a_yJFpgU",
+    authDomain: "mandir-3299f.firebaseapp.com",
+    projectId: "mandir-3299f",
+    storageBucket: "mandir-3299f.firebasestorage.app",
+    messagingSenderId: "521487727855",
+    appId: "1:521487727855:web:43ec7405af01b3cfbaaf1a"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Transport speeds
+const transportSpeeds = { "Auto": 30, "Bike": 40, "Car": 60, "Bus": 40 };
+
+// Get selected temples from previous page
+let selectedTempleNames = JSON.parse(localStorage.getItem("selectedTemples")) || [];
+
+// Temple data store fetched from Firebase
+let templeDataStore = {};
+
+// Helper functions
+function timeStringToMinutes(timeStr) {
+  const [h,m] = timeStr.split(":").map(Number);
+  return h*60+m;
+}
+
+function minutesToHHMMPM(totalMinutes){
+  const hours24 = Math.floor(totalMinutes/60)%24;
+  const minutes = totalMinutes%60;
+  const ampm = hours24>=12 ? "PM":"AM";
+  const hours12 = hours24%12===0?12:hours24%12;
+  return `${hours12}:${minutes.toString().padStart(2,'0')} ${ampm}`;
+}
+
+function haversineDistance(a,b){
+  const R=6371;
+  const dLat = (b.lat - a.lat)*Math.PI/180;
+  const dLon = (b.lon - a.lon)*Math.PI/180;
+  const lat1 = a.lat*Math.PI/180;
+  const lat2 = b.lat*Math.PI/180;
+  const aVal = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  const c = 2*Math.atan2(Math.sqrt(aVal), Math.sqrt(1-aVal));
+  return R*c;
+}
+
+function calculateTravelTime(fromTemple, toTemple, speedKph){
+  const distance = haversineDistance(fromTemple, toTemple);
+  return Math.round((distance/speedKph)*60);
+}
+
+function checkVisitFeasibility(arrivalTime,darshanTime,templeTimings){
+  for(const slot of templeTimings){
+    const start = timeStringToMinutes(slot.start);
+    const end = timeStringToMinutes(slot.end);
+    const effectiveArrival = Math.max(arrivalTime,start);
+    const departure = effectiveArrival + darshanTime;
+    if(departure <= end){
+      return {arrival: effectiveArrival, departure: departure, waitTime: effectiveArrival - arrivalTime};
+    }
+  }
+  return null;
+}
+
+// Fetch temple data from Firebase
+async function fetchSelectedTemples(){
+  templeDataStore = {
+    "Bus Stop": { name: "Bus Stop", lat: 18.604390408457398,  lon: 84.23041757033684, timings: [{start:"00:00", end:"23:59"}], darshanTime:0 }
+  };
+  try {
+    const snapshot = await db.collection("temples").get();
+    snapshot.forEach(doc=>{
+      const data = doc.data();
+      if(selectedTempleNames.includes(data.name)){
+        templeDataStore[data.name] = {
+          name: data.name,
+          lat: data.location.lat,
+          lon: data.location.lng,
+          timings: data.timings,
+          darshanTime: data.max_darshan_time
+        };
+      }
+    });
+  } catch(e){
+    console.error("Error fetching temples:", e);
+  }
+}
+
+// Core planner
+async function generatePlan(){
+  if(selectedTempleNames.length===0){
+    alert("No temples selected!");
+    return;
+  }
+
+  await fetchSelectedTemples();
+
+  const startTimeStr = document.getElementById('startTime').value;
+  const endTimeStr = document.getElementById('endTime').value;
+  const transportMode = document.getElementById('transportMode').value;
+
+  if(!startTimeStr || !endTimeStr || !transportMode){
+    alert("Fill all fields!");
+    return;
+  }
+
+  const speed = transportSpeeds[transportMode];
+  let currentTime = timeStringToMinutes(startTimeStr);
+  const endTime = timeStringToMinutes(endTimeStr);
+  let currentLocation = templeDataStore["Bus Stop"];
+  let unvisited = selectedTempleNames.map(n=>templeDataStore[n]);
+  const plan = [{temple:"Bus Stop", arrival:currentTime, darshanTime:"-", departure:currentTime, travelNext:0, travelEnd:currentTime}];
+
+  while(unvisited.length>0){
+    let best=null, minTravel=Infinity, bestDetails=null;
+    for(const t of unvisited){
+      const travelTime = calculateTravelTime(currentLocation,t,speed);
+      const arrival = currentTime + travelTime;
+      const details = checkVisitFeasibility(arrival,t.darshanTime,t.timings);
+      if(details && travelTime<minTravel && details.departure<=endTime){
+        minTravel=travelTime;
+        best=t;
+        bestDetails=details;
+      }
+    }
+    if(best){
+      plan.push({
+        temple: best.name,
+        arrival: bestDetails.arrival,
+        darshanTime: bestDetails.departure-bestDetails.arrival + " min",
+        departure: bestDetails.departure,
+        travelNext: minTravel,
+        travelEnd: bestDetails.departure
+      });
+      currentTime = bestDetails.departure;
+      currentLocation = best;
+      unvisited = unvisited.filter(u=>u.name!==best.name);
+    } else break;
+  }
+
+  // Return to Bus Stop
+  const returnTravel = calculateTravelTime(currentLocation, templeDataStore["Bus Stop"], speed);
+  plan.push({
+    temple:"Bus Stop",
+    arrival: currentTime + returnTravel,
+    darshanTime: "-",
+    departure: "-",
+    travelNext: "-",
+    travelEnd: currentTime + returnTravel
+  });
+
+  renderPlan(plan);
+}
+
+// Render Table with corrected "Travel Ends"
+function renderPlan(plan){
+  let html=`<table>
+    <thead>
+      <tr>
+        <th>Temple</th>
+        <th>Arrival</th>
+        <th>Darshan Time</th>
+        <th>Departure</th>
+        <th>Travel to Next</th>
+        <th>Travel Ends</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  for(let i=0;i<plan.length;i++){
+    const p=plan[i];
+    let travelStr="-";
+    let travelEndStr="-";
+
+    // Travel to next
+    if(i < plan.length-1){
+      const nextArrival = plan[i+1].arrival;
+      if(typeof p.departure==="number" && typeof nextArrival==="number"){
+        travelStr = `${minutesToHHMMPM(p.departure)}-${minutesToHHMMPM(nextArrival)}`;
+        travelEndStr = minutesToHHMMPM(nextArrival); // Travel ends = arrival at next temple
+      }
+    }
+
+    html+=`<tr>
+      <td>${p.temple}</td>
+      <td>${p.arrival=== "-" ? "-" : minutesToHHMMPM(p.arrival)}</td>
+      <td>${p.darshanTime}</td>
+      <td>${p.departure=== "-" ? "-" : minutesToHHMMPM(p.departure)}</td>
+      <td>${travelStr}</td>
+      <td>${travelEndStr}</td>
+    </tr>`;
+  }
+
+  html+="</tbody></table>";
+  document.getElementById("planResult").innerHTML=html;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Select Temples — Directions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; padding: 30px; background:#FFF7EA; color:#2b2b2b; }
+    h1 { color:#8B0000; text-align:center; }
+    ul { list-style:none; padding:0; }
+    li { margin:10px 0; background:#fffaf0; padding:12px 16px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    button { display:block; margin:20px auto; padding:12px 20px; background:#EBA834; border:none; border-radius:10px; font-weight:600; cursor:pointer; color:#fff; }
+  </style>
+</head>
+<body>
+  <h1>Select Temples for Directions</h1>
+  <ul id="templeList"></ul>
+  <button onclick="generateRoute()">Continue</button>
+
+  <script>
+    let userLat = 0;
+    let userLng = 0;
+    let temples = JSON.parse(localStorage.getItem("nearbyTemples") || "[]");
+
+    function showTempleSelection() {
+      const container = document.getElementById("templeList");
+      container.innerHTML = "";
+
+      if (temples.length === 0) {
+        container.innerHTML = "<li>No temples available.</li>";
+        return;
+      }
+
+      temples.forEach((t, index) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<input type="checkbox" id="temple${index}" value="${index}">
+                        <label for="temple${index}">${t.name}</label>`;
+        container.appendChild(li);
+      });
+    }
+
+    function generateRoute() {
+      const selectedIndexes = Array.from(document.querySelectorAll("input[type=checkbox]:checked"))
+                                  .map(cb => Number(cb.value));
+
+      if (selectedIndexes.length === 0) {
+        alert("Select at least one temple!");
+        return;
+      }
+
+      const selectedTemples = selectedIndexes.map(i => temples[i]);
+
+      // Save selected temples in localStorage
+      localStorage.setItem("selectedTemples", JSON.stringify(selectedTemples));
+
+      // Redirect to planner page
+      window.location.href = "local_itinerary_planner.html";
+    }
+
+    function getUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          showTempleSelection();
+        }, () => alert("Geolocation required."));
+      } else alert("Geolocation not supported.");
+    }
+
+    window.onload = getUserLocation;
+  </script>
+</body>
+</html>

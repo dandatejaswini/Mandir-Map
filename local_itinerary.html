@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mandir Map — Itinerary Generator</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --saffron: #EBA834;
+      --maroon: #8B0000;
+      --cream: #FFF5E1;
+      --card-bg: #fffaf0;
+      --radius: 14px;
+      --shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:"Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,var(--cream), #fffefc);
+      color:#2b2b2b;
+      min-height:100vh;
+      padding:32px;
+    }
+    .wrap{
+      width:100%;
+      max-width:600px;
+      margin:auto;
+      background:var(--card-bg);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      padding:28px;
+      border:1px solid rgba(139,0,0,0.03);
+    }
+    h1{
+      text-align:center;
+      color:var(--maroon);
+    }
+    #userInfo{
+      text-align:center;
+      margin-bottom:20px;
+      font-weight:600;
+      color:var(--maroon);
+    }
+    ul{
+      list-style:none;
+      padding:0;
+      margin-top:20px;
+    }
+    li{
+      background:#fff;
+      margin-bottom:12px;
+      padding:12px 16px;
+      border-radius:12px;
+      box-shadow:0 6px 16px rgba(0,0,0,0.08);
+      font-weight:600;
+      color:var(--maroon);
+    }
+    button{
+      display:block;
+      margin:20px auto 0 auto;
+      padding:12px 20px;
+      border:none;
+      background:var(--saffron);
+      color:white;
+      font-weight:600;
+      border-radius:10px;
+      cursor:pointer;
+      transition: background 0.3s;
+    }
+    button:hover{
+      background:#d4932f;
+    }
+    .loading{
+      text-align:center;
+      color:#666;
+      font-style:italic;
+      margin-top:10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Itinerary Generator</h1>
+    <p style="text-align:center;">Nearby temples open at the current time will be suggested.</p>
+
+    <div id="userInfo">Fetching your location...</div>
+    <div id="loadingText" class="loading" style="display:none;">📍 Detecting accurate GPS location...</div>
+
+    <button id="refreshBtn">Refresh Nearby Temples</button>
+    <ul id="templeList"></ul>
+    <button id="directionsBtn" style="display:none;">Get Directions</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
+
+    // ✅ Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCcuqc-AJuktUrlaNv2Qyo6HZ_a_yJFpgU",
+      authDomain: "mandir-3299f.firebaseapp.com",
+      projectId: "mandir-3299f",
+      storageBucket: "mandir-3299f.firebasestorage.app",
+      messagingSenderId: "521487727855",
+      appId: "1:521487727855:web:43ec7405af01b3cfbaaf1a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let userLat = 0;
+    let userLng = 0;
+    let nearbyTemples = [];
+
+    async function fetchTemples() {
+      const querySnapshot = await getDocs(collection(db, "temples"));
+      const temples = [];
+      querySnapshot.forEach((doc) => temples.push(doc.data()));
+      return temples;
+    }
+
+    function distance(lat1, lon1, lat2, lon2){
+      const R = 6371;
+      const dLat = (lat2-lat1)*Math.PI/180;
+      const dLon = (lon2-lon1)*Math.PI/180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+      const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R*c;
+    }
+
+    function isTempleOpen(timings){
+      const now = new Date();
+      const nowMinutes = now.getHours()*60 + now.getMinutes();
+      for(const slot of timings){
+        const [h1,m1] = slot.start.split(":").map(Number);
+        const [h2,m2] = slot.end.split(":").map(Number);
+        if(nowMinutes >= h1*60 + m1 && nowMinutes <= h2*60 + m2) return true;
+      }
+      return false;
+    }
+
+    async function showNearbyTemples(position){
+      const loading = document.getElementById("loadingText");
+      loading.style.display = "none";
+
+      userLat = position.coords.latitude;
+      userLng = position.coords.longitude;
+      console.log("Detected location:", userLat, userLng);
+
+      const now = new Date();
+      document.getElementById("userInfo").innerHTML = `
+        📍 <b>Current Location:</b> Lat ${userLat.toFixed(5)}, Lng ${userLng.toFixed(5)}<br>
+        🕓 <b>Date:</b> ${now.toLocaleDateString()} &nbsp; <b>Time:</b> ${now.toLocaleTimeString()}
+      `;
+
+      const temples = await fetchTemples();
+
+      nearbyTemples = temples.filter(t =>
+        distance(userLat,userLng,t.location.lat,t.location.lng) <= 20 &&
+        isTempleOpen(t.timings)
+      );
+
+      localStorage.setItem("nearbyTemples", JSON.stringify(nearbyTemples));
+
+      const list = document.getElementById("templeList");
+      list.innerHTML = "";
+
+      if(nearbyTemples.length === 0){
+        list.innerHTML = "<li>No nearby temples open at this time within 20 km.</li>";
+        document.getElementById("directionsBtn").style.display = "none";
+        return;
+      }
+
+      nearbyTemples.forEach(t=>{
+        const dist = distance(userLat,userLng,t.location.lat,t.location.lng).toFixed(2);
+        const li = document.createElement("li");
+        li.textContent = `${t.name} — ${dist} km`;
+        list.appendChild(li);
+      });
+
+      document.getElementById("directionsBtn").style.display = "block";
+    }
+
+    function showError(error){
+      const loading = document.getElementById("loadingText");
+      loading.style.display = "none";
+      const info = document.getElementById("userInfo");
+
+      switch(error.code){
+        case error.PERMISSION_DENIED:
+          info.innerHTML = "❌ Permission denied. Please allow location access.";
+          break;
+        case error.POSITION_UNAVAILABLE:
+          info.innerHTML = "⚠️ Location information unavailable. Try moving to an open area.";
+          break;
+        case error.TIMEOUT:
+          info.innerHTML = "⏳ Location request timed out. Please try again.";
+          break;
+        default:
+          info.innerHTML = "❗ An unknown error occurred while fetching location.";
+      }
+    }
+
+    function getLocation(){
+      const loading = document.getElementById("loadingText");
+      loading.style.display = "block";
+      if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(
+          showNearbyTemples,
+          showError,
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        alert("Geolocation is not supported by this browser.");
+      }
+    }
+
+    function goToSelectionPage(){
+      if(nearbyTemples.length === 0){
+        alert("No nearby temples to get directions.");
+        return;
+      }
+      localStorage.setItem("nearbyTemples", JSON.stringify(nearbyTemples));
+      window.location.href = "select-temples.html";
+    }
+
+    // Event listeners
+    document.getElementById("refreshBtn").addEventListener("click", getLocation);
+    document.getElementById("directionsBtn").addEventListener("click", goToSelectionPage);
+
+    // Auto fetch on load
+    window.onload = getLocation;
+  </script>
+</body>
+</html>

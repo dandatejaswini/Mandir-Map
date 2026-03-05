@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temple Details</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family:'Poppins', sans-serif; background:#FFF7EA; padding:20px; }
+    h1 { color:#8B0000; }
+    .temple-header { display:flex; flex-direction: column; align-items:center; }
+    .temple-header img { width:300px; height:300px; object-fit:cover; border-radius:12px; margin-bottom:12px; }
+    .buttons { margin:16px 0; display:flex; gap:12px; flex-wrap:wrap; }
+    .buttons button { padding:10px 16px; border:none; border-radius:8px; background:#EBA834; color:white; cursor:pointer; font-weight:600; }
+    .buttons button.active { background:#8B0000; }
+    .details { background:#fffaf0; padding:16px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08); min-height:80px; }
+    ul { padding-left: 20px; }
+    a { display:inline-block; margin-top:12px; color:#EBA834; text-decoration:none; font-weight:600; }
+  </style>
+</head>
+<body>
+
+  <h1>Temple Details</h1>
+  <div class="temple-header">
+    <img id="templeImage" src="" alt="Temple Image">
+    <h2 id="templeName"></h2>
+    <p><strong>District:</strong> <span id="templeDistrict"></span></p>
+    <p><strong>Mandal:</strong> <span id="templeMandal"></span></p>
+  </div>
+
+  <div class="buttons">
+    <button id="historyBtn">History</button>
+    <button id="timingsBtn">Timings</button>
+    <button id="facilitiesBtn">Facilities</button>
+    <button id="eventsBtn">Events</button>
+    <button id="darshanBtn">Darshan Time</button> <!-- New button -->
+  </div>
+
+  <div class="details" id="detailsDiv">Select a category to view details.</div>
+
+  <a href="temple-search.html">← Back to Search</a>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCcuqc-AJuktUrlaNv2Qyo6HZ_a_yJFpgU",
+      authDomain: "mandir-3299f.firebaseapp.com",
+      projectId: "mandir-3299f",
+      storageBucket: "mandir-3299f.firebasestorage.app",
+      messagingSenderId: "521487727855",
+      appId: "1:521487727855:web:43ec7405af01b3cfbaaf1a"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const templeImage = document.getElementById('templeImage');
+    const templeName = document.getElementById('templeName');
+    const templeDistrict = document.getElementById('templeDistrict');
+    const templeMandal = document.getElementById('templeMandal');
+    const detailsDiv = document.getElementById('detailsDiv');
+
+    const historyBtn = document.getElementById('historyBtn');
+    const timingsBtn = document.getElementById('timingsBtn');
+    const facilitiesBtn = document.getElementById('facilitiesBtn');
+    const eventsBtn = document.getElementById('eventsBtn');
+    const darshanBtn = document.getElementById('darshanBtn'); // New button
+
+    let templeData = null;
+
+    // Get temple ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const templeId = urlParams.get('id');
+
+    if (!templeId) {
+      detailsDiv.innerHTML = 'Invalid temple ID.';
+    } else {
+      db.collection('temples').doc(templeId).get()
+        .then(doc => {
+          if (!doc.exists) {
+            detailsDiv.innerHTML = 'Temple not found.';
+            return;
+          }
+          templeData = doc.data();
+          templeImage.src = templeData.image || '';
+          templeName.textContent = templeData.name;
+          templeDistrict.textContent = templeData.district;
+          templeMandal.textContent = templeData.mandal;
+        })
+        .catch(err => {
+          detailsDiv.innerHTML = `Error loading temple: ${err.message}`;
+          console.error(err);
+        });
+    }
+
+    function resetActiveButtons() {
+      [historyBtn, timingsBtn, facilitiesBtn, eventsBtn, darshanBtn].forEach(btn => btn.classList.remove('active'));
+    }
+
+    historyBtn.addEventListener('click', () => {
+      if (!templeData) return;
+      resetActiveButtons();
+      historyBtn.classList.add('active');
+      detailsDiv.innerHTML = templeData.history || 'No history available.';
+    });
+
+    timingsBtn.addEventListener('click', () => {
+      if (!templeData) return;
+      resetActiveButtons();
+      timingsBtn.classList.add('active');
+
+      let html = '';
+
+      const formatTimeRange = (start, end) => {
+        const format = t => {
+          let [h, m] = t.split(':').map(Number);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          h = h % 12 || 12;
+          return `${h}${m === 0 ? '' : ':' + m.toString().padStart(2,'0')} ${ampm}`;
+        };
+        return `${format(start)} to ${format(end)}`;
+      };
+
+      if (Array.isArray(templeData.timings) && templeData.timings.length > 0) {
+        if (templeData.timings.length === 1) {
+          const t = templeData.timings[0];
+          html += `<p>${formatTimeRange(t.start, t.end)}</p>`;
+        } else {
+          templeData.timings.forEach((t, index) => {
+            const label = index === 0 ? 'Morning' : index === 1 ? 'Evening' : `Slot ${index+1}`;
+            html += `<p><strong>${label}:</strong> ${formatTimeRange(t.start, t.end)}</p>`;
+          });
+        }
+      } else {
+        html += `<p>No timings available.</p>`;
+      }
+
+      detailsDiv.innerHTML = html;
+    });
+
+    facilitiesBtn.addEventListener('click', () => {
+      if (!templeData) return;
+      resetActiveButtons();
+      facilitiesBtn.classList.add('active');
+
+      if (templeData.facilities && templeData.facilities.length > 0) {
+        detailsDiv.innerHTML = '<ul>' + templeData.facilities.map(f => `<li>${f}</li>`).join('') + '</ul>';
+      } else {
+        detailsDiv.innerHTML = 'No facilities available.';
+      }
+    });
+
+  eventsBtn.addEventListener('click', () => {
+  if (!templeData) return;
+  resetActiveButtons();
+  eventsBtn.classList.add('active');
+
+  if (templeData.events && templeData.events.length > 0) {
+    const html = templeData.events.map(e => {
+      const parts = e.split(/:(.+)/); // split at first colon
+      if (parts.length > 1) {
+        return `<li><strong>${parts[0]}:</strong>${parts[1]}</li>`;
+      } else {
+        return `<li>${e}</li>`;
+      }
+    }).join('');
+    detailsDiv.innerHTML = '<ul>' + html + '</ul>';
+  } else {
+    detailsDiv.innerHTML = 'No events available.';
+  }
+});
+
+
+    darshanBtn.addEventListener('click', () => {
+      if (!templeData) return;
+      resetActiveButtons();
+      darshanBtn.classList.add('active');
+
+      if (templeData.max_darshan_time) {
+        detailsDiv.innerHTML = `<p><strong>Max Darshan Time:</strong> ${templeData.max_darshan_time} minutes</p>`;
+      } else {
+        detailsDiv.innerHTML = `<p>Max Darshan Time not available.</p>`;
+      }
+    });
+
+  </script>
+</body>
+</html>
